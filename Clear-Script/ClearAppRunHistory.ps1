@@ -30,11 +30,16 @@ Function Clear-Media([string]$option){
     #>
     switch($option){
         "vlc"{
-        
+            #Get vlc path, clear lines if size < 20kb, otherwise delete file
             $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
-            $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
-            $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
-            $content | Out-file $vlcsettingspath 
+            if((Get-Item $vlcsettingspath).Length/1KB -le 20){
+                $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
+                $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
+                $content | Out-file $vlcsettingspath 
+            }
+            else{
+                Clear-Item $vlcsettingspath
+                }
         
         }
         "windows"{
@@ -110,7 +115,7 @@ Function Clear-IE($option){
         }
     }
 }
-Function Format-Options{
+Function Clear-RunHistory{
     param([AllowNull()][string]$command ="",
           [AllowNull()][string]$options = "cd")
     switch($command){
@@ -123,8 +128,19 @@ Function Format-Options{
             Clear-Temp $true
             Clear-IE 
         }
+        {@("?","h","help") -contains $_}{
+        Write-Host "Usage: Clear-RunHistory <command> [options]"
+        Write-Host "`n`n`nCommands: `n`n"
+        Write-Host "browser `t Clears history, filled forms, cookies and cache of browsers (IE/Firefox/Chrome)`n"
+        Write-Host "os      `t Clears OS history, jump lists, typed paths and searches`n"
+        Write-Host "media   `t Clears media player history, playlists and recent files"
+        }
+        default{
+        Write-Host "Invalid Usage, use (Clear-RunHistory|crh) <?|h|help> for syntax help"
+        }
     }
     
 }
 
-Format-Options
+Set-Alias -Name crh -Value Clear-RunHistory
+crh ?
