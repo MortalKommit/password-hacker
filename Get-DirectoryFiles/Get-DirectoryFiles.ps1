@@ -41,7 +41,6 @@ $size = [long]0
 Write-Host "Files: $filecount Total size: $($size/1GB)"
 }
 
-$val = "C:\"
 
-Get-DirectoryFiles -path $val
+Get-DirectoryFiles -path "C:\"
     
