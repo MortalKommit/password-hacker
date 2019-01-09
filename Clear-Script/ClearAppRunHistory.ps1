@@ -38,7 +38,7 @@ Function Clear-Media([string]$option){
                 $content | Out-file $vlcsettingspath 
             }
             else{
-                Clear-Item $vlcsettingspath
+                Remove-Item $vlcsettingspath
                 }
         
         }
@@ -49,9 +49,14 @@ Function Clear-Media([string]$option){
         }
         default{
             $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
-            $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
-            $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
-            $content | Out-file $vlcsettingspath 
+            if((Get-Item $vlcsettingspath).Length/1KB -le 20){
+                $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
+                $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
+                $content | Out-file $vlcsettingspath 
+            }
+            else{
+                Remove-Item $vlcsettingspath
+                }
         
             #Clear Windows Media Player file list
             $mediaplayerpath = "$env:localappdata\Microsoft\Media Player"
@@ -143,4 +148,4 @@ Function Clear-RunHistory{
 }
 
 Set-Alias -Name crh -Value Clear-RunHistory
-crh ?
+crh 
