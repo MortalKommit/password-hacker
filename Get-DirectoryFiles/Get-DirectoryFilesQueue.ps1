@@ -6,23 +6,25 @@ $filecount = 0
 $testqueue.Enqueue($rootpath)
 while($testqueue.Count -gt 0){
     $current = $testqueue.Dequeue()
-    foreach($file in $current.EnumerateFiles()){
     try{
-        Write-Host $file.FullName
-        $filecount +=1
+        foreach($file in $current.EnumerateFiles()){
+            Write-Host $file.FullName
+            $filecount +=1
+        }
     }
     catch [System.UnauthorizedAccessException]{
     }
-    }
-    foreach($dir in $current.EnumerateDirectories()){
     try{
-        $testqueue.Enqueue($dir)
+        foreach($dir in $current.EnumerateDirectories()){
+    
+            $testqueue.Enqueue($dir)
+        }
     }
     catch [System.UnauthorizedAccessException]{
-    }
+    
     }
 }
 Write-Host "Number of files:$filecount"
 }
 
-Get-DirectoryFilesQueue -path "H:\"
+Get-DirectoryFilesQueue -path "C:\"
