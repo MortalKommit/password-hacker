@@ -14,8 +14,7 @@ while($testqueue.Count -gt 0){
         }
     }
     catch [System.UnauthorizedAccessException]{
-    }
-    catch [System.IO.PathTooLongException]{
+        $error
     }
     try{
         foreach($dir in $current.EnumerateDirectories()){
@@ -25,9 +24,7 @@ while($testqueue.Count -gt 0){
         }
     }
     catch [System.UnauthorizedAccessException]{
-    }
-    catch [System.IO.PathTooLongException]{
+        $error
     }
 }
 }
-

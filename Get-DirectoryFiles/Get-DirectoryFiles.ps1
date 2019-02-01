@@ -8,12 +8,10 @@ $size = [long]0
         foreach($file in $folder.EnumerateFiles("*.*")){
 
             try{
-                Write-Host $file.FullName
-                $filecount += 1
-                $size += $file.Length
+                $file
             }
             catch [System.UnauthorizedAccessException]{
-                Write-Host "Exception"
+                Write-Host $error
             }
         }
     
@@ -21,26 +19,21 @@ $size = [long]0
             try{
                 foreach($file in $subfolder.EnumerateFiles("*.*", [System.IO.SearchOption]"AllDirectories")){
                     try{
-                        Write-Host $file.FullName
-                        $filecount += 1
-                        $size += $file.Length
+                        $file
                     }
                     catch [System.UnauthorizedAccessException]{
-                        Write-Host "Exception"
+                        Write-Host $error
                     }
                 }
             }
             catch [System.UnauthorizedAccessException]{
-                    Write-Host "Exception"
+                    Write-Host $error
             }
         }
     }
     catch [System.UnauthorizedAccessException]{
-        Write-Host "Exception"
+        Write-Host $error
     }
-Write-Host "Files: $filecount Total size: $($size/1GB)"
 }
 
-
-Get-DirectoryFiles -path "C:\"
     

@@ -6,7 +6,7 @@ $filecount = 0
 $pending.Push($rootpath)
 while($pending.Count -gt 0){
     $current = [System.IO.DirectoryInfo]$pending.Pop()
-    Write-Host $current.FullName
+     $current=
     foreach($dir in $current.EnumerateDirectories()){
         try{
             if(($dir.Attributes -band [System.IO.FileAttributes]::System) -ne [System.IO.FileAttributes]::System){
@@ -14,20 +14,19 @@ while($pending.Count -gt 0){
             }
         }
         catch [System.UnauthorizedAccessException]{
-            Write-Host "Exception"
+             $error
         }
     }
         foreach($file in $current.EnumerateFiles('*.*')){
             try{
-                Write-Host $file.FullName
+                $file
                 $filecount +=1
             }
             catch [System.UnauthorizedAccessException]{
-                Write-Host "Exception"
+                 $error
             }
         }
 }
-Write-Host "Number of files: $filecount"
+ #"Number of files: $filecount"
 }
 
-Get-DirectoryFilesStack "C:\"
