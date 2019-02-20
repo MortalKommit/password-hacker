@@ -3,32 +3,32 @@
         ls $pathv | Remove-Item -Recurse -ErrorAction SilentlyContinue
     }
  }
-Function Clear-Recent([string]$option){
+Function Clear-Recent([string]$option=""){
     #Clear Jump Lists and Recent Places
     $recentpathautodest = "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations\"
     $recentpath = "$env:APPDATA\Microsoft\Windows\Recent\"
     $excludedfolders = "AutomaticDestinations","CustomDestinations"
     # For reference ls, gci = alias for Get-ChildItem 
-    switch($option){
+    switch($option.ToLower().Trim()){
         "recent"{
                 ls $recentpath -Exclude $excludedfolders | Remove-Item
-                }
+        }
         "list"{
                 ls $recentpathautodest -Exclude $excludedfolders | Remove-Item
-              }
+        }
         default{
                 ls $recentpath -Exclude $excludedfolders | Remove-Item
                 Clear-Directory $recentpathautodest 
-            }
+        }
     } 
 }
-Function Clear-Media([string]$option){
+Function Clear-Media([string]$option=""){
     <#Clear VLC recent files list
     Note that the replacement pattern either needs to be in single quotes ('') or have the
     $ signs of the replacement group specifiers escaped ("`$2 `$1").
     Further `n only works with double quotes(")
     #>
-    switch($option){
+    switch($option.ToLower().Trim()){
         "vlc"{
             #Get vlc path, clear lines if size < 20kb, otherwise delete file
             $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
@@ -64,16 +64,16 @@ Function Clear-Media([string]$option){
         }
         }
 }
-
-Function Clear-SearchPaths($option){
-    switch($option){
+Function Clear-SearchPaths($option=""){
+    switch($option.ToLower().Trim()){
         "search"{
             #Clear Explorer Search Pane List
             REG Delete HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery /VA /F | Out-Null
         }
         "paths"{
             #Clear Explorer Search Pane List
-            REG Delete HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery /VA /F | Out-Null
+            $Key = gi -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths\ 
+            $Key | Clear-Item
         }
         default{
                #Clear Explorer Search Pane List
@@ -84,23 +84,30 @@ Function Clear-SearchPaths($option){
           }
     }
 }
-Function Clear-Run($option){
+Function Clear-Run($option=$false){
 #Clear Run Command History
     if($option){
         $RunKey = gi -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU
         $RunKey | Clear-Item
     }
 }
-Function Clear-Temp($option){
-    #Clear Temporary Files List
-    if($option){
-        $tempfilespath = "$env:temp\"
-        Clear-Directory $tempfilespath
+Function Clear-Temp([string]$option){
+    #Clear %Temp%, $RECYCLE.BIN folders
+    switch($option.ToLower().Trim()){
+        "temp"{
+            Clear-Directory $env:temp
+        }
+        "bin"{
+             Clear-RecycleBin -Confirm:$false    
+        }
+        default{
+            Clear-Directory $env:temp
+            Clear-RecycleBin -Confirm:$false
+        }
     }
 }
-
-Function Clear-IE($option){
-    switch($option){
+Function Clear-IE($option=""){
+    switch($option.ToLower().Trim()){
     
         default{
             #Delete Temporary Internet Files
@@ -120,11 +127,34 @@ Function Clear-IE($option){
         }
     }
 }
+Function Clear-Browser($option=""){
+
+    switch($option.ToLower().Trim()){
+        "firefox"{
+          }
+        "chrome"{
+        }
+        default{
+        #Both firefox and chrome
+        }
+    }
+}
 Function Clear-RunHistory{
     param([AllowNull()][string]$command ="",
           [AllowNull()][string]$options = "cd")
-    switch($command){
-        
+    switch($command.ToLower().Trim()){
+        "browser"{
+          Clear-IE
+        }
+        "os"{
+            Clear-Recent
+            Clear-SearchPaths 
+            Clear-Run $true
+            Clear-Temp $true
+        }
+        "media"{
+            Clear-Media 
+        }
         ""{
             Clear-Recent 
             Clear-Media 
@@ -134,14 +164,14 @@ Function Clear-RunHistory{
             Clear-IE 
         }
         {@("?","h","help") -contains $_}{
-        Write-Host "Usage: Clear-RunHistory <command> [options]"
-        Write-Host "`n`n`nCommands: `n`n"
-        Write-Host "browser `t Clears history, filled forms, cookies and cache of browsers (IE/Firefox/Chrome)`n"
-        Write-Host "os      `t Clears OS history, jump lists, typed paths and searches`n"
-        Write-Host "media   `t Clears media player history, playlists and recent files"
+            Write-Host "Usage: Clear-RunHistory <command> [options]"
+            Write-Host "`n`n`nCommands: `n`n"
+            Write-Host "browser `t Clears history, filled forms, cookies and cache of browsers (IE/Firefox/Chrome)`n"
+            Write-Host "os      `t Clears OS history, jump lists, typed paths and searches`n"
+            Write-Host "media   `t Clears media player history, playlists and recent files"
         }
         default{
-        Write-Host "Invalid Usage, use (Clear-RunHistory|crh) <?|h|help> for syntax help"
+            Write-Host "Invalid Usage, use (Clear-RunHistory|crh) <?|h|help> for syntax help"
         }
     }
     
