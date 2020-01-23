@@ -1,6 +1,6 @@
 ﻿Function Clear-Directory($pathv){
-    if(($pathv  | gci) -ne $null){
-        ls $pathv | Remove-Item -Recurse -ErrorAction SilentlyContinue
+    if(($pathv  | Get-ChildItem) -ne $null){
+        Get-ChildItem $pathv | Remove-Item -Recurse -ErrorAction SilentlyContinue
     }
  }
 Function Clear-Recent([string]$option=""){
@@ -8,30 +8,58 @@ Function Clear-Recent([string]$option=""){
     $recentpathautodest = "$env:APPDATA\Microsoft\Windows\Recent\AutomaticDestinations\"
     $recentpath = "$env:APPDATA\Microsoft\Windows\Recent\"
     $excludedfolders = "AutomaticDestinations","CustomDestinations"
-    # For reference ls, gci = alias for Get-ChildItem 
     switch($option.ToLower().Trim()){
         "recent"{
-                ls $recentpath -Exclude $excludedfolders | Remove-Item
+                Get-ChildItem $recentpath -Exclude $excludedfolders | Remove-Item
+                $7zcopyhistorykey = Get-Item -Path "HKCU:\Software\7-Zip\FM" 
+                $7zpathhistorykey = Get-Item -Path "HKCU:\Software\7-Zip\Extraction"
+                if($7zcopyhistorykey.GetValue("CopyHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\FM" -Name "CopyHistory"
+                }
+                if($7zcopyhistorykey.GetValue("FolderHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\FM" -Name "FolderHistory"
+                }
+                if($7zpathhistorykey.GetValue("PathHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\Extraction" -Name "PathHistory"
+                }
         }
         "list"{
-                ls $recentpathautodest -Exclude $excludedfolders | Remove-Item
+                Get-ChildItem $recentpathautodest -Exclude $excludedfolders | Remove-Item
         }
         default{
-                ls $recentpath -Exclude $excludedfolders | Remove-Item
-                Clear-Directory $recentpathautodest 
+                Get-ChildItem $recentpath -Exclude $excludedfolders | Remove-Item
+                if(Test-Path $recentpathautodest){
+                    Clear-Directory $recentpathautodest 
+                }
+                #Remove 7-zip recent copy path, browsed folder path and extract folder paths if present 
+                $7zcopyhistorykey = Get-Item -Path "HKCU:\Software\7-Zip\FM" 
+                $7zpathhistorykey = Get-Item -Path "HKCU:\Software\7-Zip\Extraction" 
+                if($7zcopyhistorykey.GetValue("CopyHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\FM" -Name "CopyHistory"
+                }
+                if($7zcopyhistorykey.GetValue("FolderHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\FM" -Name "FolderHistory"
+                }
+                if($7zpathhistorykey.GetValue("PathHistory") -ne $null){
+                    Remove-ItemProperty -Path "HKCU:\Software\7-Zip\Extraction" -Name "PathHistory"
+                }
         }
     } 
 }
-Function Clear-Media([string]$option=""){
+Function Clear-Media([string]$option="", 
+                     [System.Management.Automation.SwitchParameter]$vlc,
+                     [System.Management.Automation.SwitchParameter]$windows
+){
     <#Clear VLC recent files list
     Note that the replacement pattern either needs to be in single quotes ('') or have the
     $ signs of the replacement group specifiers escaped ("`$2 `$1").
     Further `n only works with double quotes(")
     #>
-    switch($option.ToLower().Trim()){
-        "vlc"{
-            #Get vlc path, clear lines if size < 20kb, otherwise delete file
-            $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
+
+    if($vlc.IsPresent){
+        #Get vlc path, clear lines if size < 20kb, otherwise delete file
+        $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
+        if(Test-Path $vlcsettingspath){
             if((Get-Item $vlcsettingspath).Length/1KB -le 20){
                 $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
                 $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
@@ -39,72 +67,45 @@ Function Clear-Media([string]$option=""){
             }
             else{
                 Remove-Item $vlcsettingspath
-                }
-        
-        }
-        "windows"{
-            #Clear Windows Media Player file list
-            $mediaplayerpath = "$env:localappdata\Microsoft\Media Player"
-            Clear-Directory $mediaplayerpath
-        }
-        default{
-            $vlcsettingspath = "$env:APPDATA\vlc\vlc-qt-interface.ini"
-            if((Get-Item $vlcsettingspath).Length/1KB -le 20){
-                $content =  (Get-Content $vlcsettingspath) -join [Environment]::NewLine
-                $content = $content -replace "(\[RecentsMRL\]\r\nlist=).*(\r\ntimes=).*\r\n", "`$1@Invalid()`$2@Invalid()`r`n"
-                $content | Out-file $vlcsettingspath 
             }
-            else{
-                Remove-Item $vlcsettingspath
-                }
-        
-            #Clear Windows Media Player file list
-            $mediaplayerpath = "$env:localappdata\Microsoft\Media Player"
-            Clear-Directory $mediaplayerpath
-        }
-        }
-}
-Function Clear-SearchPaths($option=""){
-    switch($option.ToLower().Trim()){
-        "search"{
-            #Clear Explorer Search Pane List
-            REG Delete HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery /VA /F | Out-Null
-        }
-        "paths"{
-            #Clear Explorer Search Pane List
-            $Key = gi -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths\ 
-            $Key | Clear-Item
-        }
-        default{
-               #Clear Explorer Search Pane List
-                REG Delete HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery /VA /F | Out-Null
-                #Clear Explorer Typed Paths List - Requires restart of file explorer to reflect
-                $Key = gi -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths\ 
-                $key | Clear-Item
-          }
+        }    
     }
+    if($windows.IsPresent){
+        #Clear Windows Media Player file list
+        $mediaplayerpath = "$env:localappdata\Microsoft\Media Player"
+        Clear-Directory $mediaplayerpath
+    }      
+}
+Function Clear-SearchPaths($option="",
+[SystemSystem.Management.Automation.SwitchParameter]$search,
+[SystemSystem.Management.Automation.SwitchParameter]$paths){
+        if($search.IsPresent){
+            #Clear Explorer Search Pane List
+            Clear-Item -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\WordWheelQuery
+        }
+        if($paths.IsPresent){
+            #Clear Explorer Search Pane List
+            Clear-Item -Path HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths\ 
+        }
 }
 Function Clear-Run($option=$false){
 #Clear Run Command History
     if($option){
-        $RunKey = gi -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU
-        $RunKey | Clear-Item
+        Clear-Item -Path HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU
     }
 }
-Function Clear-Temp([string]$option){
-    #Clear %Temp%, $RECYCLE.BIN folders
-    switch($option.ToLower().Trim()){
-        "temp"{
+Function Clear-Temp([string]$option, 
+                    [System.Management.Automation.SwitchParameter]$temp, 
+                    [System.Management.Automation.SwitchParameter]$bin)
+{
+        #Clear %Temp%, $RECYCLE.BIN folders
+        if($temp.IsPresent){
             Clear-Directory $env:temp
         }
-        "bin"{
+        #Clear Recycle Bin - Requires Powershell 5.1
+        if($bin.IsPresent){
              Clear-RecycleBin -Confirm:$false    
         }
-        default{
-            Clear-Directory $env:temp
-            Clear-RecycleBin -Confirm:$false
-        }
-    }
 }
 Function Clear-IE($option=""){
     switch($option.ToLower().Trim()){
@@ -140,42 +141,30 @@ Function Clear-Browser($option=""){
     }
 }
 Function Clear-RunHistory{
-    param([AllowNull()][string]$command ="",
-          [AllowNull()][string]$options = "cd")
-    switch($command.ToLower().Trim()){
-        "browser"{
-          Clear-IE
-        }
-        "os"{
-            Clear-Recent
-            Clear-SearchPaths 
-            Clear-Run $true
-            Clear-Temp $true
-        }
-        "media"{
-            Clear-Media 
-        }
-        ""{
-            Clear-Recent 
-            Clear-Media 
-            Clear-SearchPaths 
-            Clear-Run $true
-            Clear-Temp $true
-            Clear-IE 
-        }
-        {@("?","h","help") -contains $_}{
-            Write-Host "Usage: Clear-RunHistory <command> [options]"
-            Write-Host "`n`n`nCommands: `n`n"
-            Write-Host "browser `t Clears history, filled forms, cookies and cache of browsers (IE/Firefox/Chrome)`n"
-            Write-Host "os      `t Clears OS history, jump lists, typed paths and searches`n"
-            Write-Host "media   `t Clears media player history, playlists and recent files"
-        }
-        default{
-            Write-Host "Invalid Usage, use (Clear-RunHistory|crh) <?|h|help> for syntax help"
-        }
-    }
-    
+    param([System.Management.Automation.SwitchParameter]$browser,
+    [System.Management.Automation.SwitchParameter]$media,
+    [System.Management.Automation.SwitchParameter]$recent,
+    [System.Boolean]$all = $true,
+    [AllowNull()][string]$options = "cd")
+$all = ($browser -or $media -or $recent) -xor $all    
+if($browser.IsPresent){
+    Clear-IE
 }
-
-Set-Alias -Name crh -Value Clear-RunHistory
-crh 
+if($media.IsPresent){
+    Clear-Media -vlc -windows
+}
+if($recent.IsPresent){
+    Clear-Recent
+    Clear-SearchPaths -search -paths
+    Clear-Run $true
+    Clear-Temp -temp -bin
+}
+if($all){
+    Clear-IE
+    Clear-Media -vlc -windows
+    Clear-Recent
+    Clear-SearchPaths -search -paths
+    Clear-Run
+    Clear-Temp -temp -bin
+}
+}
